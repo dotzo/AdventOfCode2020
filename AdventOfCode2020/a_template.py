@@ -9,7 +9,7 @@ __inputfile__ = 'Day-XX-input.txt'
 __location__ = os.path.join(sys.path[0], __inputfile__)
 
 with open(__location__, 'r') as f:
-    input_str = f.read() # Takes the inputfile as a string
+    input_str = f.read().strip() # Takes the inputfile as a string
 
 
 
