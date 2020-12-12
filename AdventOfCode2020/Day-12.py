@@ -76,14 +76,13 @@ def sail_to_waypoint(instructions: [(str,int)]) -> int:
         # Rotate waypoint about the ship
         else:
             theta = (t//90) % 4
-            if i == 'L':
+            if i == 'R':
                 theta = -theta
-            # R90 or L270
-            if theta in [1, -3]:
+            if theta in [-1, 3]:
                 dx,dy = dy,-dx
-            elif theta in [2, -2]:
+            elif theta in [-2, 2]:
                 dx,dy = -dx,-dy
-            elif theta in [3, -1]:
+            elif theta in [-3, 1]:
                 dx,dy = -dy,dx
         #print("Resultant: " + str(x) + ',' + str(y))
     return abs(x) + abs(y)
