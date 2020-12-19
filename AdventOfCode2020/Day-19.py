@@ -1,10 +1,14 @@
 # Day 19
 
-# Description
+# Below solution taken from reddit user r/ai_prof
+# I spent a long time banging my head against the CYK wall
+# and then found this super elegant solution that I SHOULD have thought of
+# a long time ago.  Thank you to them.  Definitely hardest day by far.
 
+# r/ai_prof original sourcecode: https://nopaste.ml/?l=py#XQAAAQDoAwAAAAAAAAARiAlnWkYw4z9Mqogy9BnsTxKRx5ZimKog89D0yCAx/5vFt/Ladi4EYJ63HubkbBNqnrfK/jwD0fO6c/PEhrsej4nK+WeCFbuelRIDfPYGuD99YoDQCwll+w75xUDSVJ60UgA/6ObW4IULLIn6NmVcOAGy/dewu9Uo4W0TUtGGxICsMvLWwX4DYJmrhPj9gOR2FfPw97eZxDVX0n5mM7Zol1AwYwAUNWK1//ovqlwlWIzNs6gQCsuL/WMt8qCBStXo907ZtS2pxbZkPUMgkv7VMMzu/KPkkMASWuYdbtyIEocy4VcEV5dnIdHlhDzPsabgLuWHALR0Kp089TgaMGWiZVufnp4ZNIAFb4e7tR5xE7tr6mEHdujxq8Vc2MRv8xjCkdhGifFx2YWnkHb4qy0uzVZi9Uk6BrFISrJG0whMMXCFgizkTB2ff4IV6pOlj2v6hvNQlxilpp8fSAvwwEDy4cotYIJ6b4jqTv0FER7C8cEPZAgPgEeBOMX76a1qndb0h0MeqXDD/Ve267tqnS1FbSFkuLoNtuI5fxmi/HmQcAcX7X5I2hSv/v6dHDcJGR8H8DDMP4belU5ZHAReRWXU7PvtP/AzYAYmgQFzIpLPeyd0Nn7Hp/B54Vr18ySRnIamdrp+Q8UnOvRZ5165yQ2BqyRZ/7WfMLw=
+# link to reddit post: https://www.reddit.com/r/adventofcode/comments/kg1mro/2020_day_19_solutions/ggdxmpa/
 import os
 import sys
-import re
 from pprint import pprint
 
 __inputfile__ = 'Day-19-input.txt'
@@ -14,8 +18,8 @@ with open(__location__, 'r') as f:
     input_str = f.read().strip() # Takes the inputfile as a string
 
 test = '''\
-0: 3 | 1 5
-1: 2
+0: 4 1 5
+1: 2 3 | 3 2
 2: 4 4 | 5 5
 3: 4 5 | 5 4
 4: "a"
@@ -27,99 +31,40 @@ abbbab
 aaabbb
 aaaabbb'''
 
+# recursively identify if the string s can be built using the sequence of rules given
+def can_be_built(s: str, seq: [int]) -> bool:
+    if s == '' or seq == []: # we ran out of stuff to check
+        return s == '' and seq == [] # if both ran out at the same time, the string was successfully built
 
-def create_cell(first, second):
-    res = set()
-    if first == set() or second == set():
-        return set()
-    for f in first:
-        for s in second:
-            res.add((f,s))
-    return res
-
-
-def read_grammar(grammar):
-    rules = grammar.split("\n")
-    v_rules = []
-    t_rules = []
-
-    for rule in rules:
-        left, right = rule.split(": ")
-
-        # for two or more results from a variable
-        right = right[0:].split(" | ")
-        for ri in right:
-
-            # it is a terminal
-            if '\"' == ri[0]:
-                t_rules.append([left, tuple(ri[1])])
-
-            # it is a variable
-            else:
-                v_rules.append([left, tuple(ri.split(' '))])
-    return v_rules, t_rules
-
-
-def cyk_alg(varies, terms, inp):
-    length = len(inp)
-    var0 = [va[0] for va in varies]
-    var1 = [va[1] for va in varies]
-
-    # table on which we run the algorithm
-    table = [[set() for _ in range(length-i)] for i in range(length)]
-
-    # Deal with variables
-    for i in range(length):
-        for te in terms:
-            if inp[i] == te[1][0]:
-                table[0][i].add(te[0])
-
-    # Deal with terminals
-    # its complexity is O(|G|*n^3)
-    for i in range(1, length):
-        for j in range(length - i):
-            for k in range(i):
-                row = create_cell(table[k][j], table[i-k-1][j+k+1])
-                for ro in row:
-                    if ro in var1:
-                        table[i][j].add(var0[var1.index(ro)])
-
-    # if the last element of table contains "S" the input belongs to the grammar
-    return table
-
-
-def show_result(tab, inp):
-    for c in inp:
-        print("\t{}".format(c), end="\t")
-    print()
-    for i in range(len(inp)):
-        print(i+1, end="")
-        for c in tab[i]:
-            if c == set():
-                print("\t{}".format("_"), end="\t")
-            else:
-                print("\t{}".format(c), end="\t")
-        print()
-
-    if '0' in tab[len(inp)-1][0]:
-        print("The input belongs to this context free grammar!")
+    r = RULES[seq[0]] # get the definition of the first rule in the sequence
+    if '"' in r: # our rule is for a primitive
+        if s[0] in r: # and our first character matches that primitive
+            return can_be_built(s[1:], seq[1:]) # strip off the match and keep going
+        else:
+            return False #the first char didn't match
     else:
-        print("The input does not belong to this context free grammar!")
+        return any(can_be_built(s, t + seq[1:]) for t in r) # superimpose the new rules into place and check again
 
-def in_language(g, w):
-    return '0' in cyk_alg(*read_grammar(g), w)[len(w)-1][0]
+def parse_rule(s):
+    n, e = s.split(": ")
+    if '"' not in e:
+        e = [ [int(r) for r in t.split()] for t in e.split("|")]
+    return (int(n), e)
+    
+    
+
 
 
 if __name__ == "__main__":
-    input = test.split('\n\n')
-    rules, tests = input[0], input[1].split('\n')
+    rules_text, messages = [x.split('\n') for x in input_str.split('\n\n')]
+    RULES = dict(parse_rule(r) for r in rules_text)
     print("Part 1:")
-    v, t = read_grammar(rules)
-    pprint(v)
-    pprint(t)
-    show_result(cyk_alg(v, t, 'abb'), 'abb')
-    print(in_language(rules, 'ab'))
-    #print(sum(map(lambda x: in_language(rules, x), tests)))
+    print(sum(can_be_built(m, [0]) for m in messages))
+    
+    rules_text += ["8: 42 | 42 8", "11: 42 31 | 42 11 31"]
+    RULES = dict(parse_rule(r) for r in rules_text)
+    print("Part 2:")
+    print(sum(can_be_built(m, [0]) for m in messages))
     
     
 
